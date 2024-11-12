@@ -1,0 +1,70 @@
+def FS3(df): # embedded
+    modelos = {
+        "lineal": LinearRegression(),
+        "LogisticRegression": LogisticRegression(solver='saga', penalty='l2', max_iter=200, C=0.1, n_jobs=-1),
+        "SGDClassifier": SGDClassifier(loss='hinge', penalty='l2', max_iter=200, alpha=0.0001, n_iter_no_change=10),
+        "RandomForestClassifier": RandomForestClassifier(n_estimators=100, max_depth=50, min_samples_split=20, min_samples_leaf=5, n_jobs=-1),
+        "DecisionTreeClassifier": DecisionTreeClassifier(max_depth=50, min_samples_split=20, min_samples_leaf=5, criterion='gini'),
+    }
+
+    dfs = dict()
+    fig, ax = plt.subplots(1,5, figsize=(30,8))
+    i = 0
+    X, y = df.drop('label', axis=1), df['label']
+    for nombre, modelo in modelos.items():
+
+        modelo.fit(X, y)
+        selector = SelectFromModel(modelo, threshold="mean", prefit=True) # == modelo.coef_ > umbral
+        n = selector.get_support()
+        n_aux = np.where(n == 0, True, False)
+
+        if hasattr(modelo, 'feature_importances_'):
+            puntuaje = modelo.feature_importances_[n]
+        elif modelo.coef_.ndim == 1:
+            puntuaje = np.abs(modelo.coef_)[n]
+        else:
+            puntuaje = np.abs(modelo.coef_[0])[n]
+        xs = np.arange(puntuaje.shape[0])
+        ax[i].bar(xs, puntuaje), ax[i].set_title(nombre), ax[i].set_xlabel('columnas'), ax[i].set_ylabel('importancia') 
+        i+=1
+        dfs[nombre] = X.columns[n].tolist()
+
+        print(f'Se han eliminado {np.sum(n_aux)} columnas con {nombre}', end=' ')
+        print(f'específicamente: {X.columns[n_aux].tolist()}')
+    plt.show()
+
+    # red neuronal
+    return dfs
+
+df3 = FS3(df)
+df3_over = FS3(df_over)
+
+
+
+
+
+def FS4(df, num_caracteristicas): # wrapper
+    modelos = {
+        "lineal": LinearRegression(),
+        "LogisticRegression": LogisticRegression(solver='saga', penalty='l2', max_iter=200, C=0.1, n_jobs=-1),
+        "SGDClassifier": SGDClassifier(loss='hinge', penalty='l2', max_iter=200, alpha=0.0001, n_iter_no_change=10),
+        "RandomForestClassifier": RandomForestClassifier(n_estimators=100, max_depth=50, min_samples_split=20, min_samples_leaf=5, n_jobs=-1),
+        "DecisionTreeClassifier": DecisionTreeClassifier(max_depth=50, min_samples_split=20, min_samples_leaf=5, criterion='gini'),
+	"KNN": KNearestNeighbor(k=3)
+    }
+
+    dfs = dict()
+    X, y = df.drop('label', axis=1), df['label']
+    for nombre, modelo in modelos.items():
+        selector = SequentialFeatureSelector(modelo, n_features_to_select=num_caracteristicas)
+        n = selector.get_support()
+        n_aux = np.where(n == 0, True, False)
+        dfs[nombre] = X.columns[n].tolist()
+
+        print(f'Se han eliminado las siguientes columnas: {X.columns[n_aux].tolist()}')
+ 
+    return dfs
+
+df4 = FS4(df)
+df4_over = FS4(df_over)
+
